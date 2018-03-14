@@ -99,3 +99,6 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+data/KITTI
+data/preproc_KITTI
