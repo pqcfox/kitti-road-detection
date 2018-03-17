@@ -5,6 +5,7 @@ import glob
 import os
 import random
 import shutil
+import utils
 from tqdm import tqdm
 
 SPLIT = 0.8
@@ -13,11 +14,6 @@ SEED = 230
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_dir', default='data/KITTI', help="Directory with the KITTI dataset")
 parser.add_argument('--output_dir', default='data/preproc_KITTI', help="Where to write the new data")
-
-def data_file_to_gt(data_file):
-    parts = data_file.split('_')
-    parts.insert(1, 'road')
-    return '_'.join(parts)
 
 if __name__ == "__main__":
     args = parser.parse_args()
@@ -37,8 +33,8 @@ if __name__ == "__main__":
     split_index = int(SPLIT * len(train_val_files))
     train_files, val_files = train_val_files[:split_index], train_val_files[split_index:]
 
-    train_gt_files = [data_file_to_gt(train_file) for train_file in train_files]
-    val_gt_files = [data_file_to_gt(val_file) for val_file in val_files]
+    train_gt_files = [utils.data_file_to_gt(train_file) for train_file in train_files]
+    val_gt_files = [utils.data_file_to_gt(val_file) for val_file in val_files]
 
     os.mkdir(args.output_dir)
 
