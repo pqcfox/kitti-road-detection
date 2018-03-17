@@ -30,7 +30,9 @@ def get_dataset(data_dir):
     return tf.data.Dataset.from_tensor_slices((train_images, train_gt_images))
 
 
-def train(data_dir):
+def train(images, gt_images, data_dir):
+    tf.data.Dataset.from_tensor_slices((train_images, train_gt_images))
+
     dataset = get_dataset(data_dir)
     vgg_fcn = fcn8_vgg.FCN8VGG()
     init = tf.global_variable_initializer()
