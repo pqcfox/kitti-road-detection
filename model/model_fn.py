@@ -1,6 +1,7 @@
 """Define the model."""
 
 import tensorflow as tf
+import fcn8_vgg
 
 
 def build_model(is_training, inputs, params):
@@ -16,33 +17,9 @@ def build_model(is_training, inputs, params):
         output: (tf.Tensor) output of the model
     """
     images = inputs['images']
-
-    assert images.get_shape().as_list() == [None, params.image_size, params.image_size, 3]
-
-    out = images
-    # Define the number of channels of each convolution
-    # For each block, we do: 3x3 conv -> batch norm -> relu -> 2x2 maxpool
-    num_channels = params.num_channels
-    bn_momentum = params.bn_momentum
-    channels = [num_channels, num_channels * 2, num_channels * 4, num_channels * 8]
-    for i, c in enumerate(channels):
-        with tf.variable_scope('block_{}'.format(i+1)):
-            out = tf.layers.conv2d(out, c, 3, padding='same')
-            if params.use_batch_norm:
-                out = tf.layers.batch_normalization(out, momentum=bn_momentum, training=is_training)
-            out = tf.nn.relu(out)
-            out = tf.layers.max_pooling2d(out, 2, 2)
-
-    assert out.get_shape().as_list() == [None, 4, 4, num_channels * 8]
-
-    out = tf.reshape(out, [-1, 4 * 4 * num_channels * 8])
-    with tf.variable_scope('fc_1'):
-        out = tf.layers.dense(out, num_channels * 8)
-        if params.use_batch_norm:
-            out = tf.layers.batch_normalization(out, momentum=bn_momentum, training=is_training)
-        out = tf.nn.relu(out)
-    with tf.variable_scope('fc_2'):
-        logits = tf.layers.dense(out, params.num_labels)
+    vgg_fcn = fcn8_vgg.FCN8VGG()
+    with tf.name_scope('vgg_fcn'):
+        vgg_fcn.build(images, debug=True)
 
     return logits
 
@@ -62,7 +39,6 @@ def model_fn(mode, inputs, params, reuse=False):
     """
     is_training = (mode == 'train')
     labels = inputs['labels']
-    labels = tf.cast(labels, tf.int64)
 
     # -----------------------------------------------------------
     # MODEL: define the layers of the model

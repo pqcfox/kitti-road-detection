@@ -26,7 +26,6 @@ def build_model(isTraining, inputs, params):
     fcn.build(rgb=params.rgb, train=isTraining, num_classes=params.num_classes, random_init_fc8=params.random_init,
                        use_dilated=params.use_dilated)
 
-    
 
 def model_fn(mode, inputs, params, reuse=False):
     """Model function defining the graph operations.

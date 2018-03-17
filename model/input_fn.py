@@ -11,16 +11,18 @@ def _parse_function(filename, label, size):
         - Convert to float and to range [0, 1]
     """
     image_string = tf.read_file(filename)
+    label_string = tf.read_file(label)
 
     # Don't use tf.image.decode_image, or the output shape will be undefined
-    image_decoded = tf.image.decode_jpeg(image_string, channels=3)
+    image_decoded = tf.image.decode_png(image_string, channels=3)
 
     # This will convert to float values in [0, 1]
-    image = tf.image.convert_image_dtype(image_decoded, tf.float32)
+    label_decoded = tf.image.deocde_png(label_string, channels=3)
 
-    resized_image = tf.image.resize_images(image, [size, size])
+    resized_image = tf.image.resize_images(image_decoded, [size, size])
+    resized_label = tf.image.resize_images(label_decoded, [size, size])
 
-    return resized_image, label
+    return resized_image, resized_label
 
 
 def train_preprocess(image, label, use_random_flip):
@@ -42,8 +44,8 @@ def train_preprocess(image, label, use_random_flip):
     return image, label
 
 
-def input_fn(is_training, filenames, labels, params):
-    """Input function for the SIGNS dataset.
+def input_fn(is_training, filenames, label_filenames, params):
+    """Input function for the KITTI dataset.
 
     The filenames have format "{label}_IMG_{id}.jpg".
     For instance: "data_dir/2_IMG_4584.jpg".
@@ -56,7 +58,7 @@ def input_fn(is_training, filenames, labels, params):
         params: (Params) contains hyperparameters of the model (ex: `params.num_epochs`)
     """
     num_samples = len(filenames)
-    assert len(filenames) == len(labels), "Filenames and labels should have same length"
+    assert len(filenames) == len(label_filenames), "Filenames and ground truths should have same length"
 
     # Create a Dataset serving batches of images and labels
     # We don't repeat for multiple epochs because we always train and evaluate for one epoch
@@ -64,7 +66,7 @@ def input_fn(is_training, filenames, labels, params):
     train_fn = lambda f, l: train_preprocess(f, l, params.use_random_flip)
 
     if is_training:
-        dataset = (tf.data.Dataset.from_tensor_slices((tf.constant(filenames), tf.constant(labels)))
+        dataset = (tf.data.Dataset.from_tensor_slices((tf.constant(filenames), tf.constant(label_filenames)))
             .shuffle(num_samples)  # whole dataset into the buffer ensures good shuffling
             .map(parse_fn, num_parallel_calls=params.num_parallel_calls)
             .map(train_fn, num_parallel_calls=params.num_parallel_calls)
@@ -72,7 +74,7 @@ def input_fn(is_training, filenames, labels, params):
             .prefetch(1)  # make sure you always have one batch ready to serve
         )
     else:
-        dataset = (tf.data.Dataset.from_tensor_slices((tf.constant(filenames), tf.constant(labels)))
+        dataset = (tf.data.Dataset.from_tensor_slices((tf.constant(filenames), tf.constant(label_filenames)))
             .map(parse_fn)
             .batch(params.batch_size)
             .prefetch(1)  # make sure you always have one batch ready to serve
@@ -80,7 +82,7 @@ def input_fn(is_training, filenames, labels, params):
 
     # Create reinitializable iterator from dataset
     iterator = dataset.make_initializable_iterator()
-    images, labels = iterator.get_next()
+    images, labels= iterator.get_next()
     iterator_init_op = iterator.initializer
 
     inputs = {'images': images, 'labels': labels, 'iterator_init_op': iterator_init_op}
