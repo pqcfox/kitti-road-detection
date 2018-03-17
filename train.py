@@ -1,12 +1,14 @@
 """Train the model"""
 
 import argparse
+import glob
 import logging
 import os
 import random
 
 import tensorflow as tf
 
+import utils
 from model.input_fn import input_fn
 from model.utils import Params
 from model.utils import set_logger
@@ -16,9 +18,9 @@ from model.training import train_and_evaluate
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--model_dir', default='experiments/test',
+parser.add_argument('--model_dir', default='experiments/base_model',
                     help="Experiment directory containing params.json")
-parser.add_argument('--data_dir', default='data/64x64_SIGNS',
+parser.add_argument('--data_dir', default='data/404x404_KITTI',
                     help="Directory containing the dataset")
 parser.add_argument('--restore_from', default=None,
                     help="Optional, directory or file containing weights to reload before training")
@@ -46,26 +48,26 @@ if __name__ == '__main__':
     # Create the input data pipeline
     logging.info("Creating the datasets...")
     data_dir = args.data_dir
-    train_data_dir = os.path.join(data_dir, "train_signs")
-    dev_data_dir = os.path.join(data_dir, "dev_signs")
+    train_data_dir = os.path.join(data_dir, 'train')
+    val_data_dir = os.path.join(data_dir, 'val')
 
     # Get the filenames from the train and dev sets
-    train_filenames = [os.path.join(train_data_dir, f) for f in os.listdir(train_data_dir)
-                       if f.endswith('.jpg')]
-    eval_filenames = [os.path.join(dev_data_dir, f) for f in os.listdir(dev_data_dir)
-                      if f.endswith('.jpg')]
+    train_filenames = [f for f in os.listdir(train_data_dir) if len(f.split('_')) == 2]
+    eval_filenames = [f for f in os.listdir(val_data_dir) if len(f.split('_')) == 2]
 
-    # Labels will be between 0 and 5 included (6 classes in total)
-    train_labels = [int(f.split('/')[-1][0]) for f in train_filenames]
-    eval_labels = [int(f.split('/')[-1][0]) for f in eval_filenames]
+    to_labels = lambda f: os.path.join(train_data_dir, utils.data_file_to_gt(os.path.basename(f)))
+    train_label_filenames = [to_labels(f) for f in train_filenames]
+    eval_label_filenames = [to_labels(f) for f in eval_filenames]
+
+    print(train_filenames)
 
     # Specify the sizes of the dataset we train on and evaluate on
     params.train_size = len(train_filenames)
     params.eval_size = len(eval_filenames)
 
     # Create the two iterators over the two datasets
-    train_inputs = input_fn(True, train_filenames, train_labels, params)
-    eval_inputs = input_fn(False, eval_filenames, eval_labels, params)
+    train_inputs = input_fn(True, train_filenames, train_label_filenames, params)
+    eval_inputs = input_fn(False, eval_filenames, eval_label_filenames, params)
 
     # Define the model
     logging.info("Creating the model...")

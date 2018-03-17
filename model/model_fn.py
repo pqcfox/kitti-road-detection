@@ -1,7 +1,7 @@
 """Define the model."""
 
 import tensorflow as tf
-import fcn8_vgg
+from model import tensorflow_fcn
 
 
 def build_model(is_training, inputs, params):
@@ -18,10 +18,8 @@ def build_model(is_training, inputs, params):
     """
     images = inputs['images']
     vgg_fcn = fcn8_vgg.FCN8VGG()
-    with tf.name_scope('vgg_fcn'):
-        vgg_fcn.build(images, debug=True)
-
-    return logits
+    vgg_fcn.build(images, debug=True)
+    return vgg_fcn.pred_up
 
 
 def model_fn(mode, inputs, params, reuse=False):
@@ -45,11 +43,12 @@ def model_fn(mode, inputs, params, reuse=False):
     with tf.variable_scope('model', reuse=reuse):
         # Compute the output distribution of the model and the predictions
         logits = build_model(is_training, inputs, params)
-        predictions = tf.argmax(logits, 1)
+        predictions = tf.argmax(logits, -1)
 
     # Define loss and accuracy
-    loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)
-    accuracy = tf.reduce_mean(tf.cast(tf.equal(labels, predictions), tf.float32))
+    print(logits.shape)
+    loss = loss(logits, labels, num_classes)
+    maxf1 = maxf1(logits, labels)
 
     # Define training step that minimizes the loss with the Adam optimizer
     if is_training:
@@ -68,7 +67,7 @@ def model_fn(mode, inputs, params, reuse=False):
     # Metrics for evaluation using tf.metrics (average over whole dataset)
     with tf.variable_scope("metrics"):
         metrics = {
-            'accuracy': tf.metrics.accuracy(labels=labels, predictions=tf.argmax(logits, 1)),
+            'maxf1': maxf1(logits, labels),
             'loss': tf.metrics.mean(loss)
         }
 
@@ -81,18 +80,8 @@ def model_fn(mode, inputs, params, reuse=False):
 
     # Summaries for training
     tf.summary.scalar('loss', loss)
-    tf.summary.scalar('accuracy', accuracy)
+    tf.summary.scalar('maxf1', accuracy)
     tf.summary.image('train_image', inputs['images'])
-
-    #TODO: if mode == 'eval': ?
-    # Add incorrectly labeled images
-    mask = tf.not_equal(labels, predictions)
-
-    # Add a different summary to know how they were misclassified
-    for label in range(0, params.num_labels):
-        mask_label = tf.logical_and(mask, tf.equal(predictions, label))
-        incorrect_image_label = tf.boolean_mask(inputs['images'], mask_label)
-        tf.summary.image('incorrectly_labeled_{}'.format(label), incorrect_image_label)
 
     # -----------------------------------------------------------
     # MODEL SPECIFICATION
@@ -100,9 +89,9 @@ def model_fn(mode, inputs, params, reuse=False):
     # It contains nodes or operations in the graph that will be used for training and evaluation
     model_spec = inputs
     model_spec['variable_init_op'] = tf.global_variables_initializer()
-    model_spec["predictions"] = predictions
+    model_spec['predictions'] = predictions
     model_spec['loss'] = loss
-    model_spec['accuracy'] = accuracy
+    model_spec['maxf1'] = maxf1
     model_spec['metrics_init_op'] = metrics_init_op
     model_spec['metrics'] = metrics
     model_spec['update_metrics'] = update_metrics_op
