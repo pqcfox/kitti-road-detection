@@ -2,6 +2,7 @@
 
 import tensorflow as tf
 
+COLORS = [(255, 0, 0), (255, 255, 0), (0, 0, 0)]
 
 def _parse_function(filename, label, size):
     """Obtain the image from the filename (for both training and validation).
@@ -17,7 +18,7 @@ def _parse_function(filename, label, size):
     image_decoded = tf.image.decode_png(image_string, channels=3)
 
     # This will convert to float values in [0, 1]
-    label_decoded = tf.image.decode_png(label_string, channels=3)
+    label_decoded = tf.image.decode_png(label_string, channels=1)  # TODO: make nice and onehot 
 
     resized_image = tf.image.resize_images(image_decoded, [size, size])
     resized_label = tf.image.resize_images(label_decoded, [size, size])

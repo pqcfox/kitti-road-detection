@@ -3,25 +3,33 @@
 import argparse
 import random
 import os
+import numpy as np
 
 from PIL import Image
 from tqdm import tqdm
 
 import utils
 
-SIZE = 404
+SIZE = 400
+COLORS = [(255, 0, 0), (255, 0, 255), (0, 0, 0)]
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_dir', default='data/KITTI', help="Directory with the SIGNS dataset")
 parser.add_argument('--output_dir', default='data/404x404_KITTI', help="Where to write the new data")
 
-
-def resize_and_save(filename, output_dir, size=SIZE):
+def resize_and_save(filename, output_dir, size=SIZE, is_gt=False):
     """Resize the image contained in `filename` and save it to the `output_dir`"""
-    image = Image.open(filename)
-    # Use bilinear interpolation instead of the default "nearest neighbor" method
-    image = image.resize((size, size), Image.BILINEAR)
-    image.save(os.path.join(output_dir, os.path.basename(filename)))
+    image = Image.open(filename).convert('RGB')
+    if is_gt:
+        image_array = np.array(image)
+        boring_image = np.zeros_like(image)
+        for i, color in enumerate(COLORS): # kudos to DrSleep for the reshape trick
+            boring_image[np.all(image_array == np.array(color).reshape(1, 1, 3), axis=-1)] = i
+        output_image = Image.fromarray(boring_image).resize((size, size), Image.NEAREST)
+    else:
+        # Use bilinear interpolation instead of the default "nearest neighbor" method
+        output_image = image.resize((size, size), Image.BILINEAR)
+    output_image.save(os.path.join(output_dir, os.path.basename(filename)))
 
 
 if __name__ == '__main__':
@@ -57,27 +65,25 @@ if __name__ == '__main__':
 
     if not os.path.exists(args.output_dir):
         os.mkdir(args.output_dir)
-    else:
-        print("Warning: output dir {} already exists".format(args.output_dir))
 
     train_output_dir = os.path.join(args.output_dir, 'train')
     val_output_dir = os.path.join(args.output_dir, 'val')
     test_output_dir = os.path.join(args.output_dir, 'test')
 
     # Preprocess train, dev and test
-    data_map = [(train_data_dir, train_files, train_output_dir),
-                (train_gt_data_dir, train_gt_files, train_output_dir),
-                (train_data_dir, val_files, val_output_dir),
-                (train_gt_data_dir, val_gt_files, val_output_dir),
-                (test_data_dir, test_files, test_output_dir)]
+    data_map = [# (train_data_dir, train_files, train_output_dir, False),
+                (train_gt_data_dir, train_gt_files, train_output_dir, True),
+                (train_data_dir, val_files, val_output_dir, False),
+                (train_gt_data_dir, val_gt_files, val_output_dir, True),
+                (test_data_dir, test_files, test_output_dir, False)]
 
-    for data_dir, data_files, output_dir in data_map:
+    for data_dir, data_files, output_dir, is_gt in data_map:
         if not os.path.exists(output_dir):
             os.mkdir(output_dir)
 
         print("Processing {} data, saving preprocessed data to {}".format(split, output_dir))
         for data_file in tqdm(data_files):
             from_path = os.path.join(data_dir, data_file)
-            resize_and_save(from_path, output_dir, size=SIZE)
+            resize_and_save(from_path, output_dir, size=SIZE, is_gt=is_gt)
 
     print("Done building dataset")
