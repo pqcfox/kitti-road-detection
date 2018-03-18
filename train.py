@@ -72,14 +72,6 @@ if __name__ == '__main__':
     eval_inputs = input_fn(False, prepend_path(val_data_dir, eval_filenames),
                            prepend_path(val_data_dir, eval_label_filenames), params)
 
-    with tf.Session() as sess:
-        sess.run(train_inputs['iterator_init_op'])
-        print(sess.run(tf.shape(train_inputs['images'])))
-        print(sess.run(tf.shape(train_inputs['labels'])))
-
-
-    print("WOEIFHOIWHFIOWEHFOIWEHFIOWEF")
-
     # Define the model
     logging.info("Creating the model...")
     train_model_spec = model_fn('train', train_inputs, params)
