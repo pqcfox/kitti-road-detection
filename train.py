@@ -26,6 +26,10 @@ parser.add_argument('--restore_from', default=None,
                     help="Optional, directory or file containing weights to reload before training")
 
 
+def prepend_path(path, l):
+    return [os.path.join(path, item) for item in l]
+
+
 if __name__ == '__main__':
     # Set the random seed for the whole graph for reproductible experiments
     tf.set_random_seed(230)
@@ -55,19 +59,26 @@ if __name__ == '__main__':
     train_filenames = [f for f in os.listdir(train_data_dir) if len(f.split('_')) == 2]
     eval_filenames = [f for f in os.listdir(val_data_dir) if len(f.split('_')) == 2]
 
-    to_labels = lambda f: os.path.join(train_data_dir, utils.data_file_to_gt(os.path.basename(f)))
-    train_label_filenames = [to_labels(f) for f in train_filenames]
-    eval_label_filenames = [to_labels(f) for f in eval_filenames]
-
-    print(train_filenames)
+    train_label_filenames = [utils.data_file_to_gt(f) for f in train_filenames]
+    eval_label_filenames = [utils.data_file_to_gt(f) for f in eval_filenames]
 
     # Specify the sizes of the dataset we train on and evaluate on
     params.train_size = len(train_filenames)
     params.eval_size = len(eval_filenames)
 
     # Create the two iterators over the two datasets
-    train_inputs = input_fn(True, train_filenames, train_label_filenames, params)
-    eval_inputs = input_fn(False, eval_filenames, eval_label_filenames, params)
+    train_inputs = input_fn(True, prepend_path(train_data_dir, train_filenames),
+                            prepend_path(train_data_dir, train_label_filenames), params)
+    eval_inputs = input_fn(False, prepend_path(val_data_dir, eval_filenames),
+                           prepend_path(val_data_dir, eval_label_filenames), params)
+
+    with tf.Session() as sess:
+        sess.run(train_inputs['iterator_init_op'])
+        print(sess.run(tf.shape(train_inputs['images'])))
+        print(sess.run(tf.shape(train_inputs['labels'])))
+
+
+    print("WOEIFHOIWHFIOWEHFOIWEHFIOWEF")
 
     # Define the model
     logging.info("Creating the model...")

@@ -9,6 +9,8 @@ import tensorflow as tf
 from model.utils import save_dict_to_json
 from model.evaluation import evaluate_sess
 
+from tensorflow.python import debug as tf_debug
+
 
 def train_sess(sess, model_spec, num_steps, writer, params):
     """Train the model on `num_steps` batches

@@ -1,8 +1,8 @@
 """Define the model."""
 
 import tensorflow as tf
-from model import tensorflow_fcn
-
+import model.tensorflow_fcn.fcn8_vgg as fcn8_vgg
+import model.tensorflow_fcn.loss as fcn_loss
 
 def build_model(is_training, inputs, params):
     """Compute logits of the model (output distribution)
@@ -18,9 +18,12 @@ def build_model(is_training, inputs, params):
     """
     images = inputs['images']
     vgg_fcn = fcn8_vgg.FCN8VGG()
-    vgg_fcn.build(images, debug=True)
-    return vgg_fcn.pred_up
+    vgg_fcn.build(images, train=is_training, num_classes=2, debug=True)
+    return vgg_fcn.upscore32, vgg_fcn.pred_up
 
+
+def max_f1(logits, labels):
+    return 0
 
 def model_fn(mode, inputs, params, reuse=False):
     """Model function defining the graph operations.
@@ -42,13 +45,12 @@ def model_fn(mode, inputs, params, reuse=False):
     # MODEL: define the layers of the model
     with tf.variable_scope('model', reuse=reuse):
         # Compute the output distribution of the model and the predictions
-        logits = build_model(is_training, inputs, params)
-        predictions = tf.argmax(logits, -1)
+        logits, predictions = build_model(is_training, inputs, params)
+        predictions = tf.argmax(logits, axis=-1)
 
     # Define loss and accuracy
-    print(logits.shape)
-    loss = loss(logits, labels, num_classes)
-    maxf1 = maxf1(logits, labels)
+    loss = fcn_loss.loss(logits, labels, 2)
+    max_f1_score = loss # max_f1(logits, labels)
 
     # Define training step that minimizes the loss with the Adam optimizer
     if is_training:
@@ -67,7 +69,7 @@ def model_fn(mode, inputs, params, reuse=False):
     # Metrics for evaluation using tf.metrics (average over whole dataset)
     with tf.variable_scope("metrics"):
         metrics = {
-            'maxf1': maxf1(logits, labels),
+            'max_f1': tf.metrics.mean(loss), # max_f1(logits, labels),
             'loss': tf.metrics.mean(loss)
         }
 
@@ -80,7 +82,7 @@ def model_fn(mode, inputs, params, reuse=False):
 
     # Summaries for training
     tf.summary.scalar('loss', loss)
-    tf.summary.scalar('maxf1', accuracy)
+    tf.summary.scalar('max_f1', loss)
     tf.summary.image('train_image', inputs['images'])
 
     # -----------------------------------------------------------
@@ -91,7 +93,7 @@ def model_fn(mode, inputs, params, reuse=False):
     model_spec['variable_init_op'] = tf.global_variables_initializer()
     model_spec['predictions'] = predictions
     model_spec['loss'] = loss
-    model_spec['maxf1'] = maxf1
+    model_spec['max_f1'] = max_f1
     model_spec['metrics_init_op'] = metrics_init_op
     model_spec['metrics'] = metrics
     model_spec['update_metrics'] = update_metrics_op
