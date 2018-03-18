@@ -46,11 +46,10 @@ def model_fn(mode, inputs, params, reuse=False):
     with tf.variable_scope('model', reuse=reuse):
         # Compute the output distribution of the model and the predictions
         logits, predictions = build_model(is_training, inputs, params)
-        predictions = tf.argmax(logits, axis=-1)
 
     # Define loss and accuracy
     loss = fcn_loss.loss(logits, labels, 2)
-    max_f1_score = loss # max_f1(logits, labels)
+    # max_f1_score = loss # max_f1(logits, labels)
 
     # Define training step that minimizes the loss with the Adam optimizer
     if is_training:
@@ -69,8 +68,8 @@ def model_fn(mode, inputs, params, reuse=False):
     # Metrics for evaluation using tf.metrics (average over whole dataset)
     with tf.variable_scope("metrics"):
         metrics = {
-            'max_f1': tf.metrics.mean(loss), # max_f1(logits, labels),
-            'loss': tf.metrics.mean(loss)
+            # 'max_f1': tf.metrics.mean(loss), # max_f1(logits, labels),
+            # 'loss': tf.metrics.mean(tf.Print(loss, ['MODE:', mode]))
         }
 
     # Group the update ops for the tf.metrics

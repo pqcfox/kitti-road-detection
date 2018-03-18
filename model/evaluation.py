@@ -24,8 +24,15 @@ def evaluate_sess(sess, model_spec, num_steps, writer=None, params=None):
     global_step = tf.train.get_global_step()
 
     # Load the evaluation dataset into the pipeline and initialize the metrics init op
-    sess.run(model_spec['iterator_init_op'])
-    sess.run(model_spec['metrics_init_op'])
+    # sess.run(model_spec['iterator_init_op'])
+    # sess.run(model_spec['metrics_init_op'])
+
+    # print('TEST THREE')
+    # print(sess.run(model_spec['images']))
+    # print(sess.run(model_spec['labels']))
+
+
+    # print('END OF TESTS')
 
     # compute metrics over the dataset
     for _ in range(num_steps):

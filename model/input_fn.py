@@ -83,7 +83,7 @@ def input_fn(is_training, filenames, label_filenames, params):
         )
 
     # Create reinitializable iterator from dataset
-    iterator = dataset.make_initializable_iterator()
+    iterator = dataset.make_initializable_iterator(shared_name='EVAL_ITERATOR' if not is_training else 'TRAIN_ITERATOR') # TODO: fix
     images, labels = iterator.get_next()
     iterator_init_op = iterator.initializer
 

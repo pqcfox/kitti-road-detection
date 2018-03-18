@@ -91,6 +91,10 @@ def train_and_evaluate(train_model_spec, eval_model_spec, model_dir, params, res
         best_eval_acc = 0.0
         for epoch in range(begin_at_epoch, begin_at_epoch + params.num_epochs):
             # Run one epoch
+
+            # print('BEFORE ATTEMPT')
+            # print(sess.run(eval_model_spec['update_metrics']))
+
             logging.info("Epoch {}/{}".format(epoch + 1, begin_at_epoch + params.num_epochs))
             # Compute number of batches in one epoch (one full pass over the training set)
             num_steps = (params.train_size + params.batch_size - 1) // params.batch_size
@@ -102,9 +106,16 @@ def train_and_evaluate(train_model_spec, eval_model_spec, model_dir, params, res
 
             # Evaluate for one epoch on validation set
             num_steps = (params.eval_size + params.batch_size - 1) // params.batch_size
+            print(params.eval_size)
+            print(num_steps)
+
+            # print('attempt 2')
+            # print(sess.run(eval_model_spec['iterator_init_op']))
+            # print(sess.run(eval_model_spec['update_metrics']))
             metrics = evaluate_sess(sess, eval_model_spec, num_steps, eval_writer)
 
             # If best_eval, best_save_path
+            """
             eval_acc = metrics['accuracy']
             if eval_acc >= best_eval_acc:
                 # Store new best accuracy
@@ -116,6 +127,7 @@ def train_and_evaluate(train_model_spec, eval_model_spec, model_dir, params, res
                 # Save best eval metrics in a json file in the model directory
                 best_json_path = os.path.join(model_dir, "metrics_eval_best_weights.json")
                 save_dict_to_json(metrics, best_json_path)
+            """
 
             # Save latest eval metrics in a json file in the model directory
             last_json_path = os.path.join(model_dir, "metrics_eval_last_weights.json")
