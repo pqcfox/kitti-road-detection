@@ -18,14 +18,13 @@ def _parse_function(filename, label, size):
     image_decoded = tf.image.decode_png(image_string, channels=3)
 
     # some slicey magic that should never be repeated
-    label_decoded = tf.image.decode_png(label_string, channels=1)[:, :, 0], 3)[:, :, :2]
-    mask_decoded = (label_decoded != 2)
-    label_decoded[mask_decoded] = 0  # just to make it binary
+    label_decoded = tf.image.decode_png(label_string, channels=1)
+    mask_decoded = tf.cast(tf.not_equal(label_decoded, 2), tf.uint8)
 
     # This will convert to float values in [0, 1]
-    resized_image = tf.image.resize_images(image_decoded, [size, size], method=tf.image.ResizeMethod.BILINEAR)
-    resized_label = tf.image.resize_images(label_decoded, [size, size], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-    resized_mask = tf.image.resize_images(mask_decoded, [size, size], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+    resized_image = tf.squeeze(tf.image.resize_bilinear(tf.expand_dims(image_decoded, 0), [size, size]), squeeze_dims=[0])
+    resized_label = tf.squeeze(tf.image.resize_nearest_neighbor(tf.expand_dims(label_decoded, 0), [size, size]), squeeze_dims=[0])
+    resized_mask = tf.squeeze(tf.image.resize_nearest_neighbor(tf.expand_dims(mask_decoded, 0), [size, size]), squeeze_dims=[0])
 
     return resized_image, resized_label, resized_mask
 
@@ -64,7 +63,7 @@ def input_fn(is_training, filenames, label_filenames, params):
 
     # Create a Dataset serving batches of images and labels
     # We don't repeat for multiple epochs because we always train and evaluate for one epoch
-    parse_fn = lambda f, l, m: _parse_function(f, l, params.image_size)
+    parse_fn = lambda f, l: _parse_function(f, l, params.image_size)
     train_fn = lambda f, l, m: train_preprocess(f, l, m, params.use_random_flip)
 
     if is_training:

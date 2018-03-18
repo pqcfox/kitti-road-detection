@@ -44,6 +44,7 @@ def model_fn(mode, inputs, params, reuse=False):
     """
     is_training = (mode == 'train')
     labels = inputs['labels']
+    masks = inputs['masks']
 
     # -----------------------------------------------------------
     # MODEL: define the layers of the model
@@ -52,8 +53,9 @@ def model_fn(mode, inputs, params, reuse=False):
         logits, predictions = build_model(is_training, inputs, params)
 
     # Define loss and accuracy
-    loss = fcn_loss.loss(logits, labels, 2)
-    max_f1_score = max_f1(logits, labels)
+    padding = tf.constant([[0, 0], [0, 0], [0, 0], [0, 1]])
+    loss = fcn_loss.loss(tf.pad(logits, padding), tf.one_hot(labels, 3), 3, head=[1, 1, 0])
+    # max_f1_score = max_f1(logits, labels)
 
     # Define training step that minimizes the loss with the Adam optimizer
     if is_training:
@@ -72,7 +74,7 @@ def model_fn(mode, inputs, params, reuse=False):
     # Metrics for evaluation using tf.metrics (average over whole dataset)
     with tf.variable_scope("metrics"):
         metrics = {
-            'max_f1': max_f1(logits, labels)
+            # 'max_f1': max_f1(logits, labels)
             'loss': tf.metrics.mean(loss)
         }
 
@@ -85,8 +87,10 @@ def model_fn(mode, inputs, params, reuse=False):
 
     # Summaries for training
     tf.summary.scalar('loss', loss)
-    tf.summary.scalar('max_f1', max_f1_score)
+    # tf.summary.scalar('max_f1', max_f1_score)
     tf.summary.image('train_image', inputs['images'])
+    tf.summary.image('label_image', inputs['labels'] * 127)
+    tf.summary.image('mask_image', inputs['masks'] * 255)
 
     # -----------------------------------------------------------
     # MODEL SPECIFICATION
@@ -96,7 +100,7 @@ def model_fn(mode, inputs, params, reuse=False):
     model_spec['variable_init_op'] = tf.global_variables_initializer()
     model_spec['predictions'] = predictions
     model_spec['loss'] = loss
-    model_spec['max_f1'] = max_f1_score
+    # model_spec['max_f1'] = max_f1_score
     model_spec['metrics_init_op'] = metrics_init_op
     model_spec['metrics'] = metrics
     model_spec['update_metrics'] = update_metrics_op
