@@ -18,32 +18,32 @@ def _parse_function(filename, label, size):
     image_decoded = tf.image.decode_png(image_string, channels=3)
 
     # some slicey magic that should never be repeated
-    label_decoded = tf.one_hot(tf.image.decode_png(label_string, channels=1)[:, :, 0], 3)[:, :, :2]
+    label_decoded = tf.image.decode_png(label_string, channels=1)[:, :, 0], 3)[:, :, :2]
+    mask_decoded = (label_decoded != 2)
+    label_decoded[mask_decoded] = 0  # just to make it binary
 
     # This will convert to float values in [0, 1]
     resized_image = tf.image.resize_images(image_decoded, [size, size], method=tf.image.ResizeMethod.BILINEAR)
     resized_label = tf.image.resize_images(label_decoded, [size, size], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+    resized_mask = tf.image.resize_images(mask_decoded, [size, size], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
-    return resized_image, resized_label
+    return resized_image, resized_label, resized_mask
 
 
-def train_preprocess(image, label, use_random_flip):
+def train_preprocess(image, label, mask, use_random_flip):
     """Image preprocessing for training.
 
     Apply the following operations:
         - Horizontally flip the image with probability 1/2
         - Apply random brightness and saturation
     """
-    if use_random_flip:
-        image = tf.image.random_flip_left_right(image)
-
     image = tf.image.random_brightness(image, max_delta=32.0 / 255.0)
     image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
 
     # Make sure the image is still in [0, 1]
     image = tf.clip_by_value(image, 0.0, 1.0)
 
-    return image, label
+    return image, label, mask
 
 
 def input_fn(is_training, filenames, label_filenames, params):
@@ -64,8 +64,8 @@ def input_fn(is_training, filenames, label_filenames, params):
 
     # Create a Dataset serving batches of images and labels
     # We don't repeat for multiple epochs because we always train and evaluate for one epoch
-    parse_fn = lambda f, l: _parse_function(f, l, params.image_size)
-    train_fn = lambda f, l: train_preprocess(f, l, params.use_random_flip)
+    parse_fn = lambda f, l, m: _parse_function(f, l, params.image_size)
+    train_fn = lambda f, l, m: train_preprocess(f, l, m, params.use_random_flip)
 
     if is_training:
         dataset = (tf.data.Dataset.from_tensor_slices((tf.constant(filenames), tf.constant(label_filenames)))
@@ -83,9 +83,9 @@ def input_fn(is_training, filenames, label_filenames, params):
         )
 
     # Create reinitializable iterator from dataset
-    iterator = dataset.make_initializable_iterator(shared_name='EVAL_ITERATOR' if not is_training else 'TRAIN_ITERATOR') # TODO: fix
-    images, labels = iterator.get_next()
+    iterator = dataset.make_initializable_iterator()
+    images, labels, masks = iterator.get_next()
     iterator_init_op = iterator.initializer
 
-    inputs = {'images': images, 'labels': labels, 'iterator_init_op': iterator_init_op}
+    inputs = {'images': images, 'labels': labels, 'masks': masks, 'iterator_init_op': iterator_init_op}
     return inputs

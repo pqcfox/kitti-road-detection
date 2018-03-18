@@ -23,7 +23,11 @@ def build_model(is_training, inputs, params):
 
 
 def max_f1(logits, labels):
-    return 0
+    precisions, precision_update_op = tf.metrics.precision_at_thresholds()
+    recalls, recall_update_op = tf.metrics.recall_at_thresholds()
+    fscores = 2 * precisions * recalls / (precisions + recalls)
+    return fscores, tf.group([precision_update_op, recall_update_op])
+
 
 def model_fn(mode, inputs, params, reuse=False):
     """Model function defining the graph operations.
@@ -49,7 +53,7 @@ def model_fn(mode, inputs, params, reuse=False):
 
     # Define loss and accuracy
     loss = fcn_loss.loss(logits, labels, 2)
-    # max_f1_score = loss # max_f1(logits, labels)
+    max_f1_score = max_f1(logits, labels)
 
     # Define training step that minimizes the loss with the Adam optimizer
     if is_training:
@@ -68,8 +72,8 @@ def model_fn(mode, inputs, params, reuse=False):
     # Metrics for evaluation using tf.metrics (average over whole dataset)
     with tf.variable_scope("metrics"):
         metrics = {
-            # 'max_f1': tf.metrics.mean(loss), # max_f1(logits, labels),
-            # 'loss': tf.metrics.mean(tf.Print(loss, ['MODE:', mode]))
+            'max_f1': max_f1(logits, labels)
+            'loss': tf.metrics.mean(loss)
         }
 
     # Group the update ops for the tf.metrics
@@ -81,7 +85,7 @@ def model_fn(mode, inputs, params, reuse=False):
 
     # Summaries for training
     tf.summary.scalar('loss', loss)
-    tf.summary.scalar('max_f1', loss)
+    tf.summary.scalar('max_f1', max_f1_score)
     tf.summary.image('train_image', inputs['images'])
 
     # -----------------------------------------------------------
@@ -92,7 +96,7 @@ def model_fn(mode, inputs, params, reuse=False):
     model_spec['variable_init_op'] = tf.global_variables_initializer()
     model_spec['predictions'] = predictions
     model_spec['loss'] = loss
-    model_spec['max_f1'] = max_f1
+    model_spec['max_f1'] = max_f1_score
     model_spec['metrics_init_op'] = metrics_init_op
     model_spec['metrics'] = metrics
     model_spec['update_metrics'] = update_metrics_op
