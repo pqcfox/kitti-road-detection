@@ -1,0 +1,3 @@
+[submodule "model/tensorflow_fcn"]
+	path = model/tensorflow_fcn
+	url = https://github.com/MarvinTeichmann/tensorflow-fcn
