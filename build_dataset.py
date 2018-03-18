@@ -71,7 +71,7 @@ if __name__ == '__main__':
     test_output_dir = os.path.join(args.output_dir, 'test')
 
     # Preprocess train, dev and test
-    data_map = [# (train_data_dir, train_files, train_output_dir, False),
+    data_map = [(train_data_dir, train_files, train_output_dir, False),
                 (train_gt_data_dir, train_gt_files, train_output_dir, True),
                 (train_data_dir, val_files, val_output_dir, False),
                 (train_gt_data_dir, val_gt_files, val_output_dir, True),

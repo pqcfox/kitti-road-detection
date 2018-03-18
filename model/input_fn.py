@@ -2,7 +2,7 @@
 
 import tensorflow as tf
 
-COLORS = [(255, 0, 0), (255, 255, 0), (0, 0, 0)]
+COLORS = [(255, 0, 0), (255, 255, 0), (0, 0, 0)]  # last is ignored
 
 def _parse_function(filename, label, size):
     """Obtain the image from the filename (for both training and validation).
@@ -17,11 +17,12 @@ def _parse_function(filename, label, size):
     # Don't use tf.image.decode_image, or the output shape will be undefined
     image_decoded = tf.image.decode_png(image_string, channels=3)
 
-    # This will convert to float values in [0, 1]
-    label_decoded = tf.image.decode_png(label_string, channels=1)  # TODO: make nice and onehot 
+    # some slicey magic that should never be repeated
+    label_decoded = tf.one_hot(tf.image.decode_png(label_string, channels=1)[:, :, 0], 3)[:, :, :2]
 
-    resized_image = tf.image.resize_images(image_decoded, [size, size])
-    resized_label = tf.image.resize_images(label_decoded, [size, size])
+    # This will convert to float values in [0, 1]
+    resized_image = tf.image.resize_images(image_decoded, [size, size], method=tf.image.ResizeMethod.BILINEAR)
+    resized_label = tf.image.resize_images(label_decoded, [size, size], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
     return resized_image, resized_label
 
@@ -83,7 +84,7 @@ def input_fn(is_training, filenames, label_filenames, params):
 
     # Create reinitializable iterator from dataset
     iterator = dataset.make_initializable_iterator()
-    images, labels= iterator.get_next()
+    images, labels = iterator.get_next()
     iterator_init_op = iterator.initializer
 
     inputs = {'images': images, 'labels': labels, 'iterator_init_op': iterator_init_op}
